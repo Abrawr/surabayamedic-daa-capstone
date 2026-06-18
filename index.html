@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SurabayaMedic — Rute Darurat Medis · DAA Final Exam 2026</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <div class="login-header">
+      <div class="login-logo">
+        <div class="logo-cross">✚</div>
+        <h1>Surabaya<span>Medic</span></h1>
+      </div>
+      <p>Sistem Rute Darurat Medis · DAA Final Exam 2026</p>
+    </div>
+    <div class="login-body">
+      <div class="input-group">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="admin">
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="daa2026">
+      </div>
+      <div id="loginError" class="login-error">Username atau password salah</div>
+      <button class="btn-login" onclick="attemptLogin()">Masuk ke Sistem</button>
+      <div class="login-hint">Username: <b>admin</b> &nbsp;·&nbsp; Password: <b>daa2026</b></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" style="display:none;height:100%;flex-direction:column;">
+
+<div class="topbar">
+  <div class="t-logo">
+    <div class="logo-cross-sm">✚</div>
+    <div class="t-name">Surabaya<em>Medic</em></div>
+  </div>
+  <div class="t-sep"></div>
+  <div class="t-mid">
+    <span class="t-sub">EF234405 DAA · Final Exam · 2026</span>
+    <span class="t-sub">Dijkstra · Bellman-Ford · Kruskal MST</span>
+  </div>
+  <div class="t-right">
+    <div class="emergency-badge">🚨 SISTEM DARURAT AKTIF</div>
+    <button class="t-theme-btn" onclick="toggleTheme()" title="Ganti Tema">🌓</button>
+    <button class="btn-sm r" style="padding:6px 12px;height:32px;" onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+<div class="sb-scroll">
+
+  <div class="sec">
+    <div class="sec-h open" onclick="toggleSec(this)">Algoritma Rute<span class="ar">▼</span></div>
+    <div class="sec-b open">
+      <div class="algo-wrap">
+        <div class="apill on d" onclick="setAlgo('dijkstra',this)">Dijkstra</div>
+        <div class="apill b"    onclick="setAlgo('bellman',this)">Bellman-Ford</div>
+        <div class="apill k"    onclick="setAlgo('kruskal',this)">Kruskal</div>
+      </div>
+      <div id="ami-dijkstra" class="amini d show">
+        <b>Dijkstra</b> — min-heap priority queue. Node jarak terkecil diproses lebih dulu. Optimal untuk bobot non-negatif.
+        <div><span class="tag tag-r">O((V+E) log V)</span><span class="tag tag-r">Optimal ✓</span></div>
+      </div>
+      <div id="ami-bellman" class="amini b">
+        <b>Bellman-Ford</b> — relaksasi semua edge V-1 kali. Lebih lambat tapi handle bobot negatif &amp; deteksi siklus negatif.
+        <div><span class="tag tag-b">O(V·E)</span><span class="tag tag-b">Robust ✓</span></div>
+      </div>
+      <div id="ami-kruskal" class="amini k">
+        <b>Kruskal MST</b> — sort edge + Union-Find. Bangun jaringan ambulans minimum yang menghubungkan semua fasilitas.
+        <div><span class="tag tag-a">O(E log E)</span><span class="tag tag-a">MST output</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h open" onclick="toggleSec(this)">Lokasi Darurat<span class="ar">▼</span></div>
+    <div class="sec-b open">
+      <div class="flabel">Titik Kejadian / Asal</div>
+      <select class="fsel" id="selSrc" onchange="onSrcChange()"></select>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h open" onclick="toggleSec(this)">Fasilitas Tujuan<span class="ar">▼</span></div>
+    <div class="sec-b open">
+      <div class="flabel">Filter Tipe Fasilitas</div>
+      <div class="cat-wrap" id="catWrap"></div>
+      <div class="flabel" style="margin-top:4px">Pilih fasilitas tujuan</div>
+      <select class="fsel" id="selDst" onchange="onDstChange()"></select>
+      <button class="btn-add" onclick="addStop()">+ Tambah ke Rute</button>
+      <div>
+        <div class="flabel">Rute darurat (<span id="stopCount">0</span>/5)</div>
+        <div class="stop-list" id="stopList">
+          <div style="font-size:.74rem;color:var(--text3);text-align:center;padding:8px">Belum ada tujuan dipilih</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-h open" onclick="toggleSec(this)">Kecepatan Animasi<span class="ar">▼</span></div>
+    <div class="sec-b open">
+      <div class="spd-row">
+        <div class="spd"    onclick="setSpd(120,this)">Lambat</div>
+        <div class="spd on" onclick="setSpd(40,this)">Sedang</div>
+        <div class="spd"    onclick="setSpd(8,this)">Cepat</div>
+        <div class="spd"    onclick="setSpd(0,this)">Instan</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec" style="border-bottom:none">
+    <div class="sec-b open">
+      <div class="prog-wrap"><div class="prog-fill" id="prog"></div></div>
+      <button class="btn-solve" id="btnSolve" onclick="solve()">🚑 &nbsp;Cari Rute Darurat</button>
+      <div class="btn-row" style="margin-top:4px">
+        <button class="btn-feature" onclick="findNearest()" title="Cari RS terdekat dari lokasi darurat">🏥 RS Terdekat</button>
+        <button class="btn-feature b" onclick="compareAlgos()" title="Bandingkan Dijkstra vs Bellman-Ford">⚖️ Compare</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn-sm"   onclick="clearRoute()">Hapus Rute</button>
+        <button class="btn-sm r" onclick="resetAll()">Reset Semua</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+</aside>
+
+<!-- PETA -->
+<div class="map-wrap"><div id="map"></div></div>
+
+<!-- PANEL KANAN -->
+<div class="rpanel">
+  <div class="rp-tabs">
+    <div class="rp-tab on"  onclick="switchTab('stats',this)">Hasil</div>
+    <div class="rp-tab"     onclick="switchTab('explain',this)">Penjelasan</div>
+    <div class="rp-tab"     onclick="switchTab('pseudo',this)">Pseudocode</div>
+    <div class="rp-tab"     onclick="switchTab('bench',this)">Benchmark</div>
+  </div>
+
+  <!-- STATISTIK -->
+  <div class="rp-pane on" id="pane-stats">
+    <div class="sg">
+      <div class="sc"><div class="sl">Total Jarak</div><div class="sv red" id="sDist">—</div></div>
+      <div class="sc"><div class="sl">Fasilitas</div><div class="sv blue" id="sStops">—</div></div>
+      <div class="sc"><div class="sl">Node Dikunjungi</div><div class="sv amber" id="sVis">—</div></div>
+      <div class="sc"><div class="sl">Waktu Eksekusi</div><div class="sv" id="sTime">—</div></div>
+      <div class="sc full"><div class="sl">Rute Optimal</div><div class="sv sm" id="sRoute">—</div></div>
+    </div>
+
+    <div id="kruskalPanel" style="display:none"></div>
+
+    <div id="pathStepsWrap">
+      <div class="flabel" style="margin-bottom:6px">Detail Langkah Rute</div>
+      <div class="route-steps" id="routeSteps">
+        <div style="font-size:.74rem;color:var(--text3)">Klik "Cari Rute Darurat" untuk memulai.</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="flabel" style="margin-bottom:6px">Legenda</div>
+      <div class="legend">
+        <div class="leg"><div class="leg-dot" style="background:#dc2626;border:2px solid white"></div>Lokasi Darurat</div>
+        <div class="leg"><div class="leg-dot" style="background:#059669;border:2px solid white"></div>Fasilitas Tujuan</div>
+        <div class="leg"><div class="leg-dot" style="background:rgba(220,38,38,.2);border:2px solid rgba(220,38,38,.3)"></div>Node Dieksplorasi</div>
+        <div class="leg"><div class="leg-line" style="background:#dc2626;height:4px"></div>Rute Darurat</div>
+        <div class="leg"><div class="leg-line" style="background:#059669;height:3px"></div>MST Edge</div>
+        <div class="leg"><div class="leg-line" style="background:#cbd5e1;height:2px"></div>Koneksi Tersedia</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="flabel" style="margin-bottom:5px">Log Sistem</div>
+      <div class="log-box" id="logBox">
+        <div class="lb">> SurabayaMedic siap. Peta OpenStreetMap dimuat ✓</div>
+        <div>> Pilih lokasi darurat &amp; fasilitas tujuan.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PENJELASAN -->
+  <div class="rp-pane" id="pane-explain">
+    <div id="explainContent">
+      <div class="insight b" style="font-size:.77rem;line-height:1.75">
+        <b>Penjelasan algoritma</b> akan muncul setelah rute ditemukan.<br><br>
+        Gunakan tombol <b>⚖️ Compare</b> untuk membandingkan Dijkstra vs Bellman-Ford secara langsung.
+      </div>
+    </div>
+  </div>
+
+  <!-- PSEUDOCODE -->
+  <div class="rp-pane" id="pane-pseudo">
+    <div style="font-size:.71rem;color:var(--text2);line-height:1.6;padding:2px 0 6px">
+      Pseudocode algoritma yang sedang dipilih.
+    </div>
+    <div id="pseudoBlock"></div>
+    <div style="font-size:.68rem;color:var(--text3);margin-top:4px">* Disederhanakan untuk keterbacaan.</div>
+  </div>
+
+  <!-- BENCHMARK -->
+  <div class="rp-pane" id="pane-bench">
+    <div style="font-size:.72rem;color:var(--text2);line-height:1.6;padding:2px 0 6px">
+      Jalankan benchmark empiris Dijkstra vs Bellman-Ford pada synthetic graph berbagai ukuran.
+    </div>
+    <div class="bench-sizes">
+      <label style="font-size:.72rem;color:var(--text2);">Ukuran input:</label>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+        <span class="bench-tag on" id="bs-100" onclick="toggleBenchSize(100,this)">100</span>
+        <span class="bench-tag on" id="bs-500" onclick="toggleBenchSize(500,this)">500</span>
+        <span class="bench-tag on" id="bs-1000" onclick="toggleBenchSize(1000,this)">1.000</span>
+        <span class="bench-tag on" id="bs-5000" onclick="toggleBenchSize(5000,this)">5.000</span>
+        <span class="bench-tag on" id="bs-10000" onclick="toggleBenchSize(10000,this)">10.000</span>
+      </div>
+    </div>
+    <button class="btn-solve" id="btnBench" onclick="runBenchmark()" style="margin-top:8px;font-size:.77rem;">
+      ⚡ Jalankan Benchmark
+    </button>
+    <div class="prog-wrap" style="margin-top:6px"><div class="prog-fill" id="benchProg"></div></div>
+    <div id="benchStatus" style="font-size:.68rem;color:var(--text3);margin-top:4px;min-height:16px"></div>
+    <div id="benchResults" style="margin-top:8px"></div>
+    <div id="benchNote" style="font-size:.65rem;color:var(--text3);margin-top:6px;line-height:1.5;display:none">
+      * Graph synthetic: node dengan koordinat acak di bounding box Surabaya.<br>
+      * Edge: tiap node dihubungkan ke 3–5 tetangga terdekat (Euclidean × 1.35).<br>
+      * Dijkstra: O((V+E) log V) · Bellman-Ford: O(V·E)<br>
+      * Dijalankan di browser — overhead JS runtime ikut terhitung.
+    </div>
+  </div>
+
+</div>
+
+</div>
+<script src="script.js"></script>
+</body>
+</html>
